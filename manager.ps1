@@ -55,30 +55,44 @@ try {
 }
 
 # --- 2. FETCH & PARSE CONFIG ---
+Write-Log "Fetching config file"
 try {
     Invoke-WebRequest -Uri $ConfigUrl -OutFile $LocalConfig -UseBasicParsing -TimeoutSec 10
+    Write-Log "Config file downloaded."
     $Config = Get-Content $LocalConfig | ConvertFrom-Json
+    Write-Log "Config file $LocalConfig loaded."
+    Write-Log "Config : $Config"
+
 } catch {
     Write-Log "CRITICAL: Failed to download config. Aborting."
-    exit 1
+    [Environment]::Exit(0)
 }
 
 if (-not $Config.Enabled) { 
     Write-Log "Script disabled via config. Exiting."
-    exit 0
+     [Environment]::Exit(0)
 }
+
+Write-Log "Config file schedule enabled."
+
 
 # --- 3. SCHEDULE CHECK ---
-$Now = Get-Date
-$CurrentDay = $Now.DayOfWeek.ToString()
-$CurrentHour = $Now.Hour
+$CurrentTime = (Get-Date).TimeOfDay
+$CurrentDay  = (Get-Date).DayOfWeek.ToString()
 
+# 2. Check against the new JSON structure
 $IsBlackout = $Config.BlackoutPeriods | Where-Object {
-    $_.Day -eq $CurrentDay -and $CurrentHour -ge $_.StartHour -and $CurrentHour -lt $_.EndHour
+    $_.DayOfWeek -eq $CurrentDay -and 
+    $CurrentTime -ge [TimeSpan]$_.StartTime -and 
+    $CurrentTime -lt [TimeSpan]$_.EndTime
 }
 
-# --- 4. THE EVICTION ---
+Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour" 
+
 if ($IsBlackout) {
+
+
+# --- 4. THE EVICTION ---
     Write-Log "Blackout period active. Checking sessions..."
     
     # quser throws an error if no one is logged in; we catch that silently
@@ -102,6 +116,8 @@ if ($IsBlackout) {
             }
         }
     }
+} else {
+    Write-Log "No blackout period active. Exiting."
 }
 
 Write-Log "--- Run Finished ---"
