@@ -7,7 +7,7 @@
     { "DayOfWeek": "Monday",    "StartTime": "23:30:00", "EndTime": "23:59:59" },
     { "DayOfWeek": "Tuesday",   "StartTime": "00:00:00", "EndTime": "06:00:00" },
     { "DayOfWeek": "Tuesday",   "StartTime": "23:30:00", "EndTime": "23:59:59" },
-    { "DayOfWeek": "Wednesday", "StartTime": "00:00:00", "EndTime": "06:00:00" },
+    { "DayOfWeek": "Wednesday", "StartTime": "00:00:00", "EndTime": "18:00:00" },
     { "DayOfWeek": "Wednesday", "StartTime": "23:30:00", "EndTime": "23:59:59" },
     { "DayOfWeek": "Thursday",  "StartTime": "00:00:00", "EndTime": "06:00:00" },
     { "DayOfWeek": "Thursday",  "StartTime": "23:30:00", "EndTime": "23:59:59" },
