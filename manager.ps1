@@ -5,15 +5,26 @@ $ConfigUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/config.json"
 $ScriptUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/manager.ps1"
 $LocalConfig = "C:\adolock\config.json"
 
+# Clear any existing web sessions/proxies that might hang
+[System.Net.ServicePointManager]::DefaultConnectionLimit = 1
+[System.Net.ServicePointManager]::ReusePort = $false
+
 # Suppress progress bars to prevent hanging in background tasks
 $ProgressPreference = 'SilentlyContinue'
 
 function Write-Log {
     param([string]$Message)
+    $LogDir = "C:\adolock"
+    $Path = "$LogDir\activity.log"
+    
+    # Ensure directory exists
+    if (!(Test-Path $LogDir)) { New-Item -Path $LogDir -ItemType Directory -Force }
+
     $TimeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $LogEntry = "[$TimeStamp] $Message"
-    if (!(Test-Path "C:\adolock")) { New-Item -Path "C:\adolock" -ItemType Directory }
-    Add-Content -Path $LogFile -Value $LogEntry
+    
+    # Use -PassThru and Out-File with -Append for better file handle management
+    $LogEntry | Out-File -FilePath $Path -Append -Encoding utf8 -ErrorAction SilentlyContinue
     Write-Host $LogEntry
 }
 
@@ -33,7 +44,7 @@ try {
         # Force UTF8 without BOM to keep things consistent
         [System.IO.File]::WriteAllText($ScriptPath, $RemoteScript)
         Write-Log "Update complete. Exiting current process."
-        exit 0
+        [Environment]::Exit(0)
     }
 } catch { 
     Write-Log "Update check failed: $($_.Exception.Message)" 
