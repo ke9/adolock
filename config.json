@@ -1,0 +1,9 @@
+{
+  "Enabled": true,
+  "Version": "1.0",
+  "BlackoutPeriods": [
+    { "Day": "Monday", "StartHour": 23, "EndHour": 24 },
+    { "Day": "Tuesday", "StartHour": 0, "EndHour": 6 },
+    { "Day": "Wednesday", "StartHour": 14, "EndHour": 15 }
+  ]
+}
