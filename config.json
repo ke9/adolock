@@ -2,8 +2,15 @@
   "Enabled": true,
   "Version": "1.0",
   "BlackoutPeriods": [
-    { "Day": "Monday", "StartHour": 23, "EndHour": 24 },
-    { "Day": "Tuesday", "StartHour": 0, "EndHour": 6 },
-    { "Day": "Wednesday", "StartHour": 14, "EndHour": 15 }
+    { "DayOfWeek": "Sunday",    "StartTime": "23:30:00", "EndTime": "23:59:59" },
+    { "DayOfWeek": "Monday",    "StartTime": "00:00:00", "EndTime": "06:00:00" },
+    { "DayOfWeek": "Monday",    "StartTime": "23:30:00", "EndTime": "23:59:59" },
+    { "DayOfWeek": "Tuesday",   "StartTime": "00:00:00", "EndTime": "06:00:00" },
+    { "DayOfWeek": "Tuesday",   "StartTime": "23:30:00", "EndTime": "23:59:59" },
+    { "DayOfWeek": "Wednesday", "StartTime": "00:00:00", "EndTime": "06:00:00" },
+    { "DayOfWeek": "Wednesday", "StartTime": "23:30:00", "EndTime": "23:59:59" },
+    { "DayOfWeek": "Thursday",  "StartTime": "00:00:00", "EndTime": "06:00:00" },
+    { "DayOfWeek": "Thursday",  "StartTime": "23:30:00", "EndTime": "23:59:59" },
+    { "DayOfWeek": "Friday",    "StartTime": "00:00:00", "EndTime": "06:00:00" }
   ]
 }
