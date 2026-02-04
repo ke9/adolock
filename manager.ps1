@@ -50,7 +50,8 @@ try {
         Write-Log "Update complete. Exiting current process."
         [Environment]::Exit(0)
     }
-} catch { 
+}
+catch { 
     Write-Log "Update check failed: $($_.Exception.Message)" 
 }
 
@@ -63,14 +64,15 @@ try {
     Write-Log "Config file $LocalConfig loaded."
     Write-Log "Config : $Config"
 
-} catch {
+}
+catch {
     Write-Log "CRITICAL: Failed to download config. Aborting."
     [Environment]::Exit(0)
 }
 
 if (-not $Config.Enabled) { 
     Write-Log "Script disabled via config. Exiting."
-     [Environment]::Exit(0)
+    [Environment]::Exit(0)
 }
 
 Write-Log "Config file schedule enabled."
@@ -78,7 +80,7 @@ Write-Log "Config file schedule enabled."
 
 # --- 3. SCHEDULE CHECK ---
 $CurrentTime = (Get-Date).TimeOfDay
-$CurrentDay  = (Get-Date).DayOfWeek.ToString()
+$CurrentDay = (Get-Date).DayOfWeek.ToString()
 
 # 2. Check against the new JSON structure
 $IsBlackout = $Config.BlackoutPeriods | Where-Object {
@@ -92,31 +94,54 @@ Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour"
 if ($IsBlackout) {
 
 
-# --- 4. THE EVICTION ---
+    # --- 4. THE EVICTION ---
     Write-Log "Blackout period active. Checking sessions..."
     
     # quser throws an error if no one is logged in; we catch that silently
     $UserList = quser 2>$null
     if ($null -eq $UserList) {
         Write-Log "No active sessions found."
-    } else {
+    }
+    else {
         $Sessions = $UserList | Select-String -Pattern "Active|Disc"
         foreach ($Session in $Sessions) {
             $Line = $Session.ToString().Trim()
             $Data = $Line -split "\s+"
-            
-            # Handling the > symbol for current user
+    
             $UserName = $Data[0].Replace(">", "")
             $SessionId = if ($Data[1] -match "^\d+$") { $Data[1] } else { $Data[2] }
 
-            $UserGroups = net user $UserName 2>$null
-            if ($UserGroups -notmatch "Administrators") {
+            Write-Log "Processing user $UserName"
+            
+            # ROBUST CHECK: Check if the user is a member of the local Administrators group by SID
+            # This works regardless of system language (S-1-5-32-544 is always the Admin group)
+            $IsAdmin = $false
+            try {
+                $GroupSid = "S-1-5-32-544" # Well-known SID for Built-in Administrators
+                $User = New-Object System.Security.Principal.NTAccount($UserName)
+                $Sid = $User.Translate([System.Security.Principal.SecurityIdentifier])
+        
+                # Get local group members
+                $AdminMembers = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
+                if ($AdminMembers.SID -contains $Sid) {
+                    $IsAdmin = $true
+                }
+            }
+            catch {
+                Write-Log "Error checking permissions for $UserName: $($_.Exception.Message)"
+            }
+
+            if (-not $IsAdmin) {
                 Write-Log "ACTION: Logging off user: $UserName (ID: $SessionId)"
                 logoff $SessionId
             }
+            else {
+                Write-Log "SKIP: User $UserName is an Administrator."
+            }
         }
     }
-} else {
+}
+else {
     Write-Log "No blackout period active. Exiting."
 }
 
