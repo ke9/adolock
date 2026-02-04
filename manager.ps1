@@ -112,7 +112,7 @@ if ($IsBlackout) {
             $SessionId = if ($Data[1] -match "^\d+$") { $Data[1] } else { $Data[2] }
 
             Write-Log "Processing user $UserName"
-            
+
             # ROBUST CHECK: Check if the user is a member of the local Administrators group by SID
             # This works regardless of system language (S-1-5-32-544 is always the Admin group)
             $IsAdmin = $false
@@ -128,7 +128,7 @@ if ($IsBlackout) {
                 }
             }
             catch {
-                Write-Log "Error checking permissions for $UserName: $($_.Exception.Message)"
+                Write-Log "Error checking permissions for ${UserName}: $($_.Exception.Message)"
             }
 
             if (-not $IsAdmin) {
