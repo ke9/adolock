@@ -1,8 +1,8 @@
 # --- CONFIGURATION ---
 $ScriptPath = $MyInvocation.MyCommand.Path
 $LogFile = "C:\adolock\activity.log"
-$ConfigUrl = "https://raw.githubusercontent.com/ke9/adolock/main/config.json"
-$ScriptUrl = "https://raw.githubusercontent.com/ke9/adolock/main/manager.ps1"
+$ConfigUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/config.json"
+$ScriptUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/manager.ps1"
 $LocalConfig = "C:\adolock\config.json"
 
 # --- HELPER: LOGGING FUNCTION ---
