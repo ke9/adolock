@@ -15,6 +15,7 @@ function Write-Log {
 }
 
 Write-Log "--- Run Started ---"
+Write-Log "Script path: $ScriptPath"
 
 # --- 1. SELF-UPDATE LOGIC ---
 try {
