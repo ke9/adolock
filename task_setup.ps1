@@ -1,5 +1,5 @@
 $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
-    -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File C:\adolock\manager.ps1"
+    -Argument "-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File C:\adolock\manager.ps1"
 $Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
 $Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 

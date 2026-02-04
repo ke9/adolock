@@ -90,4 +90,5 @@ if ($IsBlackout) {
 }
 
 Write-Log "--- Run Finished ---"
-exit 0
+[System.FlushConsoleInputBuffer] # Optional: clear any pending input
+[Environment]::Exit(0)
