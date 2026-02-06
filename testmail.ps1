@@ -20,6 +20,8 @@ function Write-Log {
 function Send-LogoutEmail {
     param([string]$LoggedUser)
     
+    $MachineName = $env:COMPUTERNAME
+
     if (-not (Test-Path $SecretsFile)) {
         Write-Log "ERROR: Secrets file missing. Cannot send email."
         return
@@ -27,7 +29,8 @@ function Send-LogoutEmail {
 
     $Secrets = Get-Content $SecretsFile | ConvertFrom-Json
     $Subject = "User Evicted: $LoggedUser"
-    $Body = "The user '$LoggedUser' was logged off at $(Get-Date)."
+   # $Body = "The user '$LoggedUser' was logged off at $(Get-Date)."
+    $Body = "The user '$LoggedUser' was logged off from machine '$MachineName' at $(Get-Date)."
     
     try {
         $SecurePass = ConvertTo-SecureString $Secrets.SmtpPass -AsPlainText -Force
