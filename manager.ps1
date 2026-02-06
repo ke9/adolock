@@ -159,12 +159,18 @@ if ($IsBlackout) {
             }
 
             if (-not $IsAdmin) {
-                Write-Log "ACTION: Logging off user: $UserName (Session: $SessionId)"
+                Write-Log "ACTION: Logging off user: $UserName"
                 Send-LogoutEmail -LoggedUser $UserName
-                
-                # Note: 'logoff' command usually still exists on Home, 
-                # but we target the SessionId specifically.
-                logoff $SessionId 2>$null
+    
+                # Forced Logoff using CIM
+                # Flag 0 = Logoff, Flag 4 = Forced Logoff
+                try {
+                    $OS = Get-CimInstance -ClassName Win32_OperatingSystem
+                    Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
+                    Write-Log "Logoff command sent successfully."
+                } catch {
+                    Write-Log "Logoff FAILED: $($_.Exception.Message)"
+                }
             }
             else {
                 Write-Log "SKIP: User $UserName is an Administrator."
