@@ -121,35 +121,34 @@ Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour"
 
 if ($IsBlackout) {
 
-
-    # --- 4. THE EVICTION ---
+    # --- 4. THE EVICTION (ADAPTED FOR WINDOWS 11 HOME) ---
     Write-Log "Blackout period active. Checking sessions..."
     
-    # quser throws an error if no one is logged in; we catch that silently
-    $UserList = quser 2>$null
-    if ($null -eq $UserList) {
-        Write-Log "No active sessions found."
+    # Get interactive logon sessions (LogonType 2 = Interactive, 10 = Remote)
+    # This works on Home/Family editions where quser is missing.
+    $LogonSessions = Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -in @(2, 10) }
+
+    if ($null -eq $LogonSessions) {
+        Write-Log "No active interactive sessions found."
     }
     else {
-        $Sessions = $UserList | Select-String -Pattern "Active|Disc"
-        foreach ($Session in $Sessions) {
-            $Line = $Session.ToString().Trim()
-            $Data = $Line -split "\s+"
-    
-            $UserName = $Data[0].Replace(">", "")
-            $SessionId = if ($Data[1] -match "^\d+$") { $Data[1] } else { $Data[2] }
+        foreach ($Session in $LogonSessions) {
+            # Get the actual Account object associated with this session
+            $UserInfo = Get-CimAssociatedInstance -InputObject $Session -ResultClassName Win32_Account -ErrorAction SilentlyContinue
+            
+            if ($null -eq $UserInfo) { continue }
 
+            $UserName = $UserInfo.Name
+            $SessionId = $Session.LogonId # This is the unique ID for logoff
+            
             Write-Log "Processing user $UserName"
 
-            # ROBUST CHECK: Check if the user is a member of the local Administrators group by SID
-            # This works regardless of system language (S-1-5-32-544 is always the Admin group)
+            # --- ROBUST ADMIN CHECK ---
             $IsAdmin = $false
             try {
-                $GroupSid = "S-1-5-32-544" # Well-known SID for Built-in Administrators
-                $User = New-Object System.Security.Principal.NTAccount($UserName)
-                $Sid = $User.Translate([System.Security.Principal.SecurityIdentifier])
+                $GroupSid = "S-1-5-32-544" 
+                $Sid = $UserInfo.SID # CIM already gives us the SID, no need to translate!
         
-                # Get local group members
                 $AdminMembers = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
                 if ($AdminMembers.SID -contains $Sid) {
                     $IsAdmin = $true
@@ -160,9 +159,12 @@ if ($IsBlackout) {
             }
 
             if (-not $IsAdmin) {
-                Write-Log "ACTION: Logging off user: $UserName (ID: $SessionId)"
+                Write-Log "ACTION: Logging off user: $UserName (Session: $SessionId)"
                 Send-LogoutEmail -LoggedUser $UserName
-                logoff $SessionId
+                
+                # Note: 'logoff' command usually still exists on Home, 
+                # but we target the SessionId specifically.
+                logoff $SessionId 2>$null
             }
             else {
                 Write-Log "SKIP: User $UserName is an Administrator."
@@ -175,5 +177,4 @@ else {
 }
 
 Write-Log "--- Run Finished ---"
-[System.FlushConsoleInputBuffer] # Optional: clear any pending input
 [Environment]::Exit(0)
