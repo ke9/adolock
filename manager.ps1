@@ -8,7 +8,7 @@ $LogFile = "C:\adolock\activity.log"
 $ConfigUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/config.json"
 $ScriptUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/manager.ps1"
 $LocalConfig = "C:\adolock\config.json"
-
+$SecretsFile = "C:\adolock\secrets.json"
 # Clear any existing web sessions/proxies that might hang
 [System.Net.ServicePointManager]::DefaultConnectionLimit = 1
 [System.Net.ServicePointManager]::ReusePort = $false
@@ -31,6 +31,31 @@ function Write-Log {
     $LogEntry | Out-File -FilePath $Path -Append -Encoding utf8 -ErrorAction SilentlyContinue
     Write-Host $LogEntry
 }
+
+function Send-LogoutEmail {
+    param([string]$LoggedUser)
+    
+    if (-not (Test-Path $SecretsFile)) {
+        Write-Log "ERROR: Secrets file missing. Cannot send email."
+        return
+    }
+
+    $Secrets = Get-Content $SecretsFile | ConvertFrom-Json
+    $Subject = "User Evicted: $LoggedUser"
+    $Body = "The user '$LoggedUser' was logged off at $(Get-Date)."
+    
+    try {
+        $SecurePass = ConvertTo-SecureString $Secrets.SmtpPass -AsPlainText -Force
+        $Creds = New-Object System.Management.Automation.PSCredential($Secrets.SmtpUser, $SecurePass)
+        
+        Send-MailMessage -From $Secrets.EmailFrom -To $Secrets.EmailTo -Subject $Subject -Body $Body `
+            -SmtpServer $Secrets.SmtpServer -Port $Secrets.SmtpPort -UseSsl -Credential $Creds
+        Write-Log "Email sent for: $LoggedUser"
+    } catch {
+        Write-Log "Mail Error: $($_.Exception.Message)"
+    }
+}
+
 
 Write-Log "--- Run Started ---"
 
@@ -133,6 +158,7 @@ if ($IsBlackout) {
 
             if (-not $IsAdmin) {
                 Write-Log "ACTION: Logging off user: $UserName (ID: $SessionId)"
+                Send-LogoutEmail -LoggedUser $UserName
                 logoff $SessionId
             }
             else {
