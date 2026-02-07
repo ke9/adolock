@@ -12,7 +12,7 @@
     { "DayOfWeek": "Thursday",  "StartTime": "00:00:00", "EndTime": "06:00:00" },
     { "DayOfWeek": "Thursday",  "StartTime": "23:30:00", "EndTime": "23:59:59" },
     { "DayOfWeek": "Friday",    "StartTime": "00:00:00", "EndTime": "06:00:00" },
-   { "DayOfWeek": "Saturday",  "StartTime": "02:30:00", "EndTime": "19:00:59" },
+   { "DayOfWeek": "Saturday",  "StartTime": "02:30:00", "EndTime": "06:00:59" },
    { "DayOfWeek": "Sunday",  "StartTime": "02:30:00", "EndTime": "06:30:59" }
   ]
 }
