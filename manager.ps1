@@ -1,7 +1,3 @@
-
-
-
-
 # --- CONFIGURATION ---
 $ScriptPath = $MyInvocation.MyCommand.Path
 $LogFile = "C:\adolock\activity.log"
