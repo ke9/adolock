@@ -122,7 +122,7 @@ if ($IsBlackout) {
     Write-Log "Blackout period active. Checking sessions..."
     
     for ($i = 1; $i -le 4; $i++) {
-        Write-Log "Starting eviction check iteration $i of 9..."
+        Write-Log "Starting eviction check iteration $i of 4..."
 
         # Get all interactive and RDP sessions
         $Sessions = Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -in @(2, 10) }
