@@ -121,7 +121,7 @@ Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour"
 if ($IsBlackout) {
     Write-Log "Blackout period active. Checking sessions..."
     
-    for ($i = 1; $i -le 9; $i++) {
+    for ($i = 1; $i -le 4; $i++) {
         Write-Log "Starting eviction check iteration $i of 9..."
 
         # Get all interactive and RDP sessions
@@ -169,8 +169,8 @@ if ($IsBlackout) {
             }
         }
 
-        if ($i -lt 9) {
-            Start-Sleep -Seconds 30
+        if ($i -lt 4) {
+            Start-Sleep -Seconds 60
         }
     }
 }
