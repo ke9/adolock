@@ -72,11 +72,9 @@ try {
     $NormalizedLocal = $CurrentScriptContent -replace "`r`n", "`n" -replace "`r", "`n"
 
     if ($NormalizedRemote.Trim() -ne $NormalizedLocal.Trim()) {
-        Write-Log "New script version detected. Updating..."
+        Write-Log "New script version detected. Updating for next run..."
         # Force UTF8 without BOM to keep things consistent
         [System.IO.File]::WriteAllText($ScriptPath, $RemoteScript)
-        Write-Log "Update complete. Exiting current process."
-        [Environment]::Exit(0)
     }
 }
 catch { 
@@ -120,61 +118,69 @@ $IsBlackout = $Config.BlackoutPeriods | Where-Object {
 Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour" 
 
 if ($IsBlackout) {
-
-    # --- 4. THE EVICTION (ADAPTED FOR WINDOWS 11 HOME) ---
+    
     Write-Log "Blackout period active. Checking sessions..."
-    
-    # Get interactive logon sessions (LogonType 2 = Interactive, 10 = Remote)
-    # This works on Home/Family editions where quser is missing.
-    $LogonSessions = Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -in @(2, 10) }
-
-    if ($null -eq $LogonSessions) {
-        Write-Log "No active interactive sessions found."
-    }
-    else {
-        foreach ($Session in $LogonSessions) {
-            # Get the actual Account object associated with this session
-            $UserInfo = Get-CimAssociatedInstance -InputObject $Session -ResultClassName Win32_Account -ErrorAction SilentlyContinue
-            
-            if ($null -eq $UserInfo) { continue }
-
-            $UserName = $UserInfo.Name
-            $SessionId = $Session.LogonId # This is the unique ID for logoff
-            
-            Write-Log "Processing user $UserName"
-
-            # --- ROBUST ADMIN CHECK ---
-            $IsAdmin = $false
-            try {
-                $GroupSid = "S-1-5-32-544" 
-                $Sid = $UserInfo.SID # CIM already gives us the SID, no need to translate!
+    for ($i = 1; $i -le 9; $i++) {
+        Write-Log "Starting eviction check iteration $i of 9..."
         
-                $AdminMembers = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
-                if ($AdminMembers.SID -contains $Sid) {
-                    $IsAdmin = $true
-                }
-            }
-            catch {
-                Write-Log "Error checking permissions for ${UserName}: $($_.Exception.Message)"
-            }
+        # Get interactive logon sessions (LogonType 2 = Interactive, 10 = Remote)
+        # This works on Home/Family editions where quser is missing.
+        $LogonSessions = Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -in @(2, 10) }
 
-            if (-not $IsAdmin) {
-                Write-Log "ACTION: Logging off user: $UserName"
-                Send-LogoutEmail -LoggedUser $UserName
-    
-                # Forced Logoff using CIM
-                # Flag 0 = Logoff, Flag 4 = Forced Logoff
+        if ($null -eq $LogonSessions) {
+            Write-Log "No active interactive sessions found."
+        }
+        else {
+            foreach ($Session in $LogonSessions) {
+                # Get the actual Account object associated with this session
+                $UserInfo = Get-CimAssociatedInstance -InputObject $Session -ResultClassName Win32_Account -ErrorAction SilentlyContinue
+                
+                if ($null -eq $UserInfo) { continue }
+
+                $UserName = $UserInfo.Name
+                $SessionId = $Session.LogonId # This is the unique ID for logoff
+                
+                Write-Log "Processing user $UserName"
+
+                # --- ROBUST ADMIN CHECK ---
+                $IsAdmin = $false
                 try {
-                    $OS = Get-CimInstance -ClassName Win32_OperatingSystem
-                    Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
-                    Write-Log "Logoff command sent successfully."
-                } catch {
-                    Write-Log "Logoff FAILED: $($_.Exception.Message)"
+                    $GroupSid = "S-1-5-32-544" 
+                    $Sid = $UserInfo.SID # CIM already gives us the SID, no need to translate!
+            
+                    $AdminMembers = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
+                    if ($AdminMembers.SID -contains $Sid) {
+                        $IsAdmin = $true
+                    }
+                }
+                catch {
+                    Write-Log "Error checking permissions for ${UserName}: $($_.Exception.Message)"
+                }
+
+                if (-not $IsAdmin) {
+                    Write-Log "ACTION: Logging off user: $UserName"
+                    Send-LogoutEmail -LoggedUser $UserName
+        
+                    # Forced Logoff using CIM
+                    # Flag 0 = Logoff, Flag 4 = Forced Logoff
+                    try {
+                        $OS = Get-CimInstance -ClassName Win32_OperatingSystem
+                        Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
+                        Write-Log "Logoff command sent successfully."
+                    } catch {
+                        Write-Log "Logoff FAILED: $($_.Exception.Message)"
+                    }
+                }
+                else {
+                    Write-Log "SKIP: User $UserName is an Administrator."
                 }
             }
-            else {
-                Write-Log "SKIP: User $UserName is an Administrator."
-            }
+        }
+        # --- YOUR ORIGINAL CODE ENDS HERE ---
+
+        if ($i -lt 9) {
+            Write-Log "Waiting 30 seconds before next check..."
+            Start-Sleep -Seconds 30
         }
     }
 }
