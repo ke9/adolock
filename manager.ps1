@@ -159,11 +159,11 @@ if ($IsBlackout) {
                 Write-Log "Executing forced logoff for $UserName via CIM..."
                 try {
                     $OS = Get-CimInstance -ClassName Win32_OperatingSystem
-                    #Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
+                    Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
                     Write-Log "Logoff command sent successfully."
                 } catch {
                     Write-Log "CIM Logoff Failed: $($_.Exception.Message). Trying shutdown.exe fallback..."
-                   # & shutdown.exe /l /f
+                    & shutdown.exe /l /f
                 }
             }
             else {
