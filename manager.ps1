@@ -116,69 +116,60 @@ $IsBlackout = $Config.BlackoutPeriods | Where-Object {
 
 Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour" 
 
+# ... (Keep your existing Config and Update logic) ...
+
 if ($IsBlackout) {
-    
     Write-Log "Blackout period active. Checking sessions..."
+    
     for ($i = 1; $i -le 9; $i++) {
         Write-Log "Starting eviction check iteration $i of 9..."
-        
-        # Get interactive logon sessions (LogonType 2 = Interactive, 10 = Remote)
-        # This works on Home/Family editions where quser is missing.
-        $LogonSessions = Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -in @(2, 10) }
 
-        if ($null -eq $LogonSessions) {
-            Write-Log "No active interactive sessions found."
-        }
-        else {
-            foreach ($Session in $LogonSessions) {
-                # Get the actual Account object associated with this session
-                $UserInfo = Get-CimAssociatedInstance -InputObject $Session -ResultClassName Win32_Account -ErrorAction SilentlyContinue
-                
-                if ($null -eq $UserInfo) { continue }
+        # Get all interactive and RDP sessions
+        $Sessions = Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -in @(2, 10) }
 
-                $UserName = $UserInfo.Name
-                $SessionId = $Session.LogonId # This is the unique ID for logoff
-                
-                Write-Log "Processing user $UserName"
-
-                # --- ROBUST ADMIN CHECK ---
-                $IsAdmin = $false
-                try {
-                    $GroupSid = "S-1-5-32-544" 
-                    $Sid = $UserInfo.SID # CIM already gives us the SID, no need to translate!
+        foreach ($Sess in $Sessions) {
+            # Get User Account associated with this specific Logon ID
+            $UserAccount = Get-CimAssociatedInstance -InputObject $Sess -ResultClassName Win32_Account
             
-                    $AdminMembers = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
-                    if ($AdminMembers.SID -contains $Sid) {
-                        $IsAdmin = $true
-                    }
-                }
-                catch {
-                    Write-Log "Error checking permissions for ${UserName}: $($_.Exception.Message)"
-                }
+            if ($null -eq $UserAccount) { continue }
 
-                if (-not $IsAdmin) {
-                    Write-Log "ACTION: Logging off user: $UserName"
-                    Send-LogoutEmail -LoggedUser $UserName
-        
-                    # Forced Logoff using CIM
-                    # Flag 0 = Logoff, Flag 4 = Forced Logoff
-                    try {
-                        $OS = Get-CimInstance -ClassName Win32_OperatingSystem
-                        Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
-                        Write-Log "Logoff command sent successfully."
-                    } catch {
-                        Write-Log "Logoff FAILED: $($_.Exception.Message)"
-                    }
-                }
-                else {
-                    Write-Log "SKIP: User $UserName is an Administrator."
+            $UserName = $UserAccount.Name
+            $UserSid = $UserAccount.SID
+
+            # --- IMPROVED ADMIN CHECK ---
+            $IsAdmin = $false
+            $AdminGroup = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
+            
+            if ($AdminGroup.SID -contains $UserSid) {
+                $IsAdmin = $true
+            }
+
+            if (-not $IsAdmin) {
+                Write-Log "ACTION: Logging off non-admin user: $UserName (SID: $UserSid)"
+                Send-LogoutEmail -LoggedUser $UserName
+                
+                # We need the Session ID for logoff.exe, not the LogonId. 
+                # On Windows Home/Pro, 'quser' or 'qwinsta' provides this.
+                # Since you want robustness, we'll find the process 'explorer.exe' for that user.
+                $UserSessionId = (Get-Process -Name explorer -IncludeUserName | Where-Object { $_.UserName -like "*\$UserName" }).SessionId
+
+                if ($UserSessionId) {
+                    Write-Log "Found Session ID $UserSessionId for $UserName. Executing logoff..."
+                    # logoff [sessionid] /v (more targeted than Win32Shutdown)
+                    & logoff.exe $UserSessionId
+                } else {
+                    Write-Log "Could not find active explorer session for $UserName, attempting forced CIM logoff."
+                    # Fallback for sessions without a taskbar (rare)
+                    $OS = Get-CimInstance -ClassName Win32_OperatingSystem
+                    Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
                 }
             }
+            else {
+                Write-Log "SKIP: User $UserName is an Administrator. Ignoring."
+            }
         }
-        # --- YOUR ORIGINAL CODE ENDS HERE ---
 
         if ($i -lt 9) {
-            Write-Log "Waiting 30 seconds before next check..."
             Start-Sleep -Seconds 30
         }
     }
