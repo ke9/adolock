@@ -125,55 +125,43 @@ Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour"
 # ... (Keep your existing Config and Update logic) ...
 
 if ($IsBlackout) {
-    Write-Log "Blackout period active. Checking sessions..."
+    Write-Log "Blackout period active. Checking for active human sessions..."
     
     for ($i = 1; $i -le 4; $i++) {
-        Write-Log "Starting eviction check iteration $i of 4..."
+        # 1. Get all explorer processes (only exists if a user is logged in interactively)
+        $ExplorerProcesses = Get-Process -Name explorer -ErrorAction SilentlyContinue
 
-        # Get all interactive and RDP sessions
-        $Sessions = Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -in @(2, 10) }
-
-        foreach ($Sess in $Sessions) {
-            # Get User Account associated with this specific Logon ID
-            $UserAccount = Get-CimAssociatedInstance -InputObject $Sess -ResultClassName Win32_Account
-            
-            if ($null -eq $UserAccount) { continue }
-
-            $UserName = $UserAccount.Name
-            $UserSid = $UserAccount.SID
-
-            # --- IMPROVED ADMIN CHECK ---
-            $IsAdmin = $false
-            $AdminGroup = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
-            
-            if ($AdminGroup.SID -contains $UserSid) {
-                $IsAdmin = $true
-            }
-
-           if (-not $IsAdmin) {
-                Write-Log "ACTION: Logging off non-admin user: $UserName (SID: $UserSid)"
-                Send-LogoutEmail -LoggedUser $UserName
+        if ($null -eq $ExplorerProcesses) {
+            Write-Log "No active Explorer processes found. No users to evict."
+        } else {
+            foreach ($Proc in $ExplorerProcesses) {
+                # Identify the user owning this explorer process
+                $OwnerInfo = Invoke-CimMethod -InputObject (Get-CimInstance Win32_Process -Filter "ProcessId = $($Proc.Id)") -MethodName GetOwner
+                $UserName = $OwnerInfo.User
                 
-                # Using CIM (WMI) to trigger the logoff. 
-                # Flags: 0 = Logoff, 4 = Forced Logoff
-                Write-Log "Executing forced logoff for $UserName via CIM..."
-                try {
+                # Get the SID to check Admin status
+                $UserAccount = Get-CimInstance Win32_UserAccount -Filter "Name = '$UserName' AND Domain = '$env:COMPUTERNAME'"
+                if ($null -eq $UserAccount) { continue }
+                $UserSid = $UserAccount.SID
+
+                # Admin Check
+                $AdminGroup = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue
+                $IsAdmin = $AdminGroup.SID -contains $UserSid
+
+                if (-not $IsAdmin) {
+                    Write-Log "ACTION: Logging off non-admin user: $UserName"
+                    Send-LogoutEmail -LoggedUser $UserName
+                    
+                    # Force Logoff
                     $OS = Get-CimInstance -ClassName Win32_OperatingSystem
                     Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
-                    Write-Log "Logoff command sent successfully."
-                } catch {
-                    Write-Log "CIM Logoff Failed: $($_.Exception.Message). Trying shutdown.exe fallback..."
-                    & shutdown.exe /l /f
+                } else {
+                    Write-Log "SKIP: $UserName is an Admin."
                 }
-            }
-            else {
-                Write-Log "SKIP: User $UserName is an Administrator. Ignoring."
             }
         }
 
-        if ($i -lt 4) {
-            Start-Sleep -Seconds 60
-        }
+        if ($i -lt 4) { Start-Sleep -Seconds 60 }
     }
 }
 else {
