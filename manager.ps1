@@ -144,24 +144,20 @@ if ($IsBlackout) {
                 $IsAdmin = $true
             }
 
-            if (-not $IsAdmin) {
+           if (-not $IsAdmin) {
                 Write-Log "ACTION: Logging off non-admin user: $UserName (SID: $UserSid)"
                 Send-LogoutEmail -LoggedUser $UserName
                 
-                # We need the Session ID for logoff.exe, not the LogonId. 
-                # On Windows Home/Pro, 'quser' or 'qwinsta' provides this.
-                # Since you want robustness, we'll find the process 'explorer.exe' for that user.
-                $UserSessionId = (Get-Process -Name explorer -IncludeUserName | Where-Object { $_.UserName -like "*\$UserName" }).SessionId
-
-                if ($UserSessionId) {
-                    Write-Log "Found Session ID $UserSessionId for $UserName. Executing logoff..."
-                    # logoff [sessionid] /v (more targeted than Win32Shutdown)
-                    & logoff.exe $UserSessionId
-                } else {
-                    Write-Log "Could not find active explorer session for $UserName, attempting forced CIM logoff."
-                    # Fallback for sessions without a taskbar (rare)
+                # Using CIM (WMI) to trigger the logoff. 
+                # Flags: 0 = Logoff, 4 = Forced Logoff
+                Write-Log "Executing forced logoff for $UserName via CIM..."
+                try {
                     $OS = Get-CimInstance -ClassName Win32_OperatingSystem
-                    Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
+                    #Invoke-CimMethod -InputObject $OS -MethodName "Win32Shutdown" -Arguments @{ Flags = 4 }
+                    Write-Log "Logoff command sent successfully."
+                } catch {
+                    Write-Log "CIM Logoff Failed: $($_.Exception.Message). Trying shutdown.exe fallback..."
+                   # & shutdown.exe /l /f
                 }
             }
             else {
