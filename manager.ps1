@@ -8,6 +8,12 @@ $ConfigUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/config.json"
 $ScriptUrl = "https://raw.githubusercontent.com/ke9/adolock/v1/manager.ps1"
 $LocalConfig = "C:\adolock\config.json"
 $SecretsFile = "C:\adolock\secrets.json"
+
+$Headers = @{
+    "Cache-Control" = "no-cache"
+    "Pragma"        = "no-cache"
+}
+
 # Clear any existing web sessions/proxies that might hang
 [System.Net.ServicePointManager]::DefaultConnectionLimit = 1
 [System.Net.ServicePointManager]::ReusePort = $false
@@ -63,7 +69,7 @@ Write-Log "--- Run Started ---"
 
 # --- 1. SELF-UPDATE LOGIC (With Normalization) ---
 try {
-    $RemoteScript = (Invoke-WebRequest -Uri $ScriptUrl -UseBasicParsing -TimeoutSec 10).Content
+    $RemoteScript = (Invoke-WebRequest -Uri $ScriptUrl -Headers $Headers -UseBasicParsing -TimeoutSec 10).Content
     $CurrentScriptContent = Get-Content $ScriptPath -Raw
     
     # Normalize line endings to compare text content only
@@ -83,7 +89,7 @@ catch {
 # --- 2. FETCH & PARSE CONFIG ---
 Write-Log "Fetching config file"
 try {
-    Invoke-WebRequest -Uri $ConfigUrl -OutFile $LocalConfig -UseBasicParsing -TimeoutSec 10
+    Invoke-WebRequest -Uri $ConfigUrl -OutFile $LocalConfig -Headers $Headers -UseBasicParsing -TimeoutSec 10
     Write-Log "Config file downloaded."
     $Config = Get-Content $LocalConfig | ConvertFrom-Json
     Write-Log "Config file $LocalConfig loaded."
