@@ -127,7 +127,7 @@ Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour"
 if ($IsBlackout) {
     Write-Log "Blackout period active. Checking for active human sessions..."
     
-    for ($i = 1; $i -le 4; $i++) {
+    for ($i = 1; $i -le 9; $i++) {
         # 1. Get all explorer processes (only exists if a user is logged in interactively)
         $ExplorerProcesses = Get-Process -Name explorer -ErrorAction SilentlyContinue
 
@@ -161,7 +161,7 @@ if ($IsBlackout) {
             }
         }
 
-        if ($i -lt 4) { Start-Sleep -Seconds 60 }
+        if ($i -lt 9) { Start-Sleep -Seconds 30 }
     }
 }
 else {
