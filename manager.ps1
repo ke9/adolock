@@ -151,7 +151,7 @@ Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour"
 # ... (Keep your existing Config and Update logic) ...
 
 if ($IsBlackout) {
-    Send-LogoutEmail -Message "Blackout period active. Checking for active human sessions..."
+    Send-Email -Message "Blackout period active. Checking for active human sessions..."
     Write-Log "Blackout period active. Checking for active human sessions..."
     
     for ($i = 1; $i -le 9; $i++) {
@@ -193,7 +193,7 @@ if ($IsBlackout) {
 }
 else {
     Write-Log "No blackout period active. Exiting."
-    Send-LogoutEmail -Message "No blackout period active. Exiting."
+    Send-Email -Message "No blackout period active. Exiting."
 }
 
 Write-Log "--- Run Finished ---"
