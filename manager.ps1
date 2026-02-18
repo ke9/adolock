@@ -64,6 +64,32 @@ function Send-LogoutEmail {
     }
 }
 
+function Send-Email {
+    param([string]$Message)
+    
+    $MachineName = $env:COMPUTERNAME
+
+    if (-not (Test-Path $SecretsFile)) {
+        Write-Log "ERROR: Secrets file missing. Cannot send email."
+        return
+    }
+
+    $Secrets = Get-Content $SecretsFile | ConvertFrom-Json
+    $Subject = "Message report from $MachineName"
+   
+    $Body = "$Message"
+    
+    try {
+        $SecurePass = ConvertTo-SecureString $Secrets.SmtpPass -AsPlainText -Force
+        $Creds = New-Object System.Management.Automation.PSCredential($Secrets.SmtpUser, $SecurePass)
+        
+        Send-MailMessage -From $Secrets.EmailFrom -To $Secrets.EmailTo -Subject $Subject -Body $Body `
+            -SmtpServer $Secrets.SmtpServer -Port $Secrets.SmtpPort -UseSsl -Credential $Creds
+        Write-Log "Email sent for: $LoggedUser"
+    } catch {
+        Write-Log "Mail Error: $($_.Exception.Message)"
+    }
+}
 
 Write-Log "--- Run Started ---"
 
@@ -125,6 +151,7 @@ Write-Log "Now $Now, day: $CurrentDay, hour: $CurrentHour"
 # ... (Keep your existing Config and Update logic) ...
 
 if ($IsBlackout) {
+    Send-LogoutEmail -Message "Blackout period active. Checking for active human sessions..."
     Write-Log "Blackout period active. Checking for active human sessions..."
     
     for ($i = 1; $i -le 9; $i++) {
@@ -166,6 +193,7 @@ if ($IsBlackout) {
 }
 else {
     Write-Log "No blackout period active. Exiting."
+    Send-LogoutEmail -Message "No blackout period active. Exiting."
 }
 
 Write-Log "--- Run Finished ---"
