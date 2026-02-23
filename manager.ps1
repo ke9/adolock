@@ -83,7 +83,7 @@ function Send-Email {
         $SecurePass = ConvertTo-SecureString $Secrets.SmtpPass -AsPlainText -Force
         $Creds = New-Object System.Management.Automation.PSCredential($Secrets.SmtpUser, $SecurePass)
         
-        Send-MailMessage -From $Secrets.EmailFrom -To $Secrets.EmailTo -Subject $Subject -Body $Body `
+      #  Send-MailMessage -From $Secrets.EmailFrom -To $Secrets.EmailTo -Subject $Subject -Body $Body `
             -SmtpServer $Secrets.SmtpServer -Port $Secrets.SmtpPort -UseSsl -Credential $Creds
         Write-Log "Email sent for: $LoggedUser"
     } catch {
