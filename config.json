@@ -1,6 +1,6 @@
 {
 
-  "Enabled": false,
+  "Enabled": true,
   "Version": "1.0",
   "BlackoutPeriods": [
     { "DayOfWeek": "Sunday",    "StartTime": "23:30:00", "EndTime": "23:59:59" },
